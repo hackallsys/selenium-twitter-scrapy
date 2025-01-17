@@ -2,6 +2,7 @@ import argparse
 import sys
 import os
 import getpass
+from twitter_scraper import TwitterScraper
 
 
 try:
@@ -62,6 +63,16 @@ def main():
         USER_PASSWORD = getpass.getpass("Enter Password: ")
 
     print()
+
+    if USER_UNAME is not None and USER_PASSWORD is not None:
+        try:
+            scraper = TwitterScraper(USER_UNAME, USER_PASSWORD)
+            scraper.login()
+        except KeyboardInterrupt:
+            print("\nScript Interrupted by user. Exiting...")
+            sys.exit(1)
+    
+    sys.exit(1)
 
 
 if __name__ == "__main__":

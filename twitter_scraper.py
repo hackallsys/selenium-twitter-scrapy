@@ -17,7 +17,7 @@ from selenium.webdriver.edge.service import Service as EdgeService
 
 from webdriver_manager.chrome import ChromeDriverManager
 
-TWITTER_LOGIN_URL = "https://twitter.com/i/flow/login"
+TWITTER_LOGIN_URL = "https://www.biying.com"
 
 
 class TwitterScraper:
@@ -26,6 +26,8 @@ class TwitterScraper:
 
         self.username = username
         self.password = password
+
+        self.driver = self._get_driver()
 
     def _get_driver(self):
         print("Setup WebDriver...")
@@ -42,9 +44,6 @@ class TwitterScraper:
         browser_option.add_argument("--disable-notifications")
         browser_option.add_argument("--disable-popup-blocking")
         browser_option.add_argument("--user-agent={}".format(header))
-
-        # For Hiding Browser
-        browser_option.add_argument("--headless")
 
         try:
             print("Initializing ChromeDriver...")
@@ -74,8 +73,19 @@ class TwitterScraper:
                 sys.exit(1)
 
     def login(self):
+        """
+        login twitter
+        """
         print()
         print("Logging in to Twitter...")
 
         self.driver.get(TWITTER_LOGIN_URL)
         time.sleep(3)
+
+    def go_to_home(self):
+        """
+        return to twitter home page
+        """
+        self.driver.get("https://x.com/home")
+        time.sleep(3)
+        pass
