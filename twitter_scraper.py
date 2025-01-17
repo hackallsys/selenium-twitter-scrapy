@@ -14,18 +14,22 @@ from selenium.common.exceptions import (
 
 from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.edge.service import Service as EdgeService
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 from webdriver_manager.chrome import ChromeDriverManager
 
-TWITTER_LOGIN_URL = "https://www.biying.com"
+TWITTER_LOGIN_URL = "https://x.com/i/flow/login"
+WAITTING_TIME_SECOND = 10
 
 
 class TwitterScraper:
-    def __init__(self, username, password):
+    def __init__(self, username, password, account):
         print("Initializing Twitter Scraper...")
 
         self.username = username
         self.password = password
+        self.account = account
 
         self.driver = self._get_driver()
 
@@ -79,8 +83,97 @@ class TwitterScraper:
         print()
         print("Logging in to Twitter...")
 
-        self.driver.get(TWITTER_LOGIN_URL)
-        time.sleep(3)
+        try:
+            self.driver.maximize_window()
+            self.driver.get(TWITTER_LOGIN_URL)
+            time.sleep(3)
+
+            self._input_username()
+            self._input_unusual_activity()
+            self._input_password()
+
+        except Exception as e:
+            print()
+            print(f"Login Failed: {e}")
+            sys.exit(1)
+
+    def _input_username(self):
+        """
+        input username
+        """
+        input_attempt = 0
+
+        while True:
+            try:
+                username = self.driver.find_element(By.XPATH, "//input[@autocomplete='username']")
+                username.send_keys(self.username)
+                time.sleep(WAITTING_TIME_SECOND)
+                username.send_keys(Keys.RETURN)
+                time.sleep(WAITTING_TIME_SECOND // 2)
+                break
+            except NoSuchElementException:
+                input_attempt += 1
+                if input_attempt >= 3:
+                    print()
+                    print(
+                        """There was an error inputting the username.
+
+It may be due to the following:
+- Internet connection is unstable
+- Username is incorrect
+- Twitter is experiencing unusual activity"""
+                    )
+                    self.driver.quit()
+                    sys.exit(1)
+                else:
+                    print("Re-attempting to input username...")
+                    time.sleep(2)
+
+    def _input_password(self):
+        input_attempt = 0
+
+        while True:
+            try:
+                password = self.driver.find_element(By.XPATH, "//input[@autocomplete='current-password']")
+
+                password.send_keys(self.password)
+                time.sleep(WAITTING_TIME_SECOND)
+                password.send_keys(Keys.RETURN)
+                time.sleep(WAITTING_TIME_SECOND // 2)
+                break
+            except NoSuchElementException:
+                input_attempt += 1
+                if input_attempt >= 3:
+                    print()
+                    print(
+                        """There was an error inputting the password.
+
+It may be due to the following:
+- Internet connection is unstable
+- Password is incorrect
+- Twitter is experiencing unusual activity"""
+                    )
+                    self.driver.quit()
+                    sys.exit(1)
+                else:
+                    print("Re-attempting to input password...")
+                    time.sleep(2)
+    
+    def _input_unusual_activity(self):
+        input_attempt = 0
+
+        while True:
+            try:
+                unusual_activity = self.driver.find_element(By.XPATH, "//input[@data-testid='ocfEnterTextTextInput']")
+                unusual_activity.send_keys(self.account)
+                time.sleep(WAITTING_TIME_SECOND)
+                unusual_activity.send_keys(Keys.RETURN)
+                time.sleep(WAITTING_TIME_SECOND // 2)
+                break
+            except NoSuchElementException:
+                input_attempt += 1
+                if input_attempt >= 3:
+                    break
 
     def go_to_home(self):
         """

@@ -19,10 +19,12 @@ except Exception as e:
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Twiter Friends List Lookup Tool')
-    parser.add_argument('-u', '--user', type=str,
+    parser.add_argument('--user', type=str,
                         default=os.getenv("TWITTER_USERNAME"), help='Your twitter username.')
-    parser.add_argument('-p', '--password', type=str,
+    parser.add_argument('--password', type=str,
                         default=os.getenv("TWITTER_PASSWORD"), help='Your twitter password')
+    parser.add_argument('--account', type=str,
+                        default=os.getenv("TWITTER_ACCOUNT"), help='Your twitter account')
 
     args = parser.parse_args()
     return args
@@ -55,6 +57,7 @@ def main():
 
     USER_UNAME = args.user
     USER_PASSWORD = args.password
+    USER_ACCOUNT = args.account
 
     if USER_UNAME is None:
         USER_UNAME = input("Twitter Username: ")
@@ -62,11 +65,14 @@ def main():
     if USER_PASSWORD is None:
         USER_PASSWORD = getpass.getpass("Enter Password: ")
 
+    if USER_ACCOUNT is None:
+        USER_ACCOUNT = getpass.getpass("Enter Password: ")
+
     print()
 
     if USER_UNAME is not None and USER_PASSWORD is not None:
         try:
-            scraper = TwitterScraper(USER_UNAME, USER_PASSWORD)
+            scraper = TwitterScraper(USER_UNAME, USER_PASSWORD, USER_ACCOUNT)
             scraper.login()
         except KeyboardInterrupt:
             print("\nScript Interrupted by user. Exiting...")
