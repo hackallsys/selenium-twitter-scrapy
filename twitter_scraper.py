@@ -218,15 +218,63 @@ It may be due to the following:
         search_element.send_keys(Keys.RETURN)
         time.sleep(WAITTING_TIME_SECOND * 6)
 
-    def _go_to_people(self):
+        self._go_to_people(query_username)
+        self._go_to_query_user(query_username)
+
+    def _go_to_people(self, search_user):
         """
         进入People标签页
         """
-        people_element = self.driver.find_element(By.XPATH, "//span[@class='css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3']")
-        people_element.click()
-        time.sleep(WAITTING_TIME_SECOND)
+        span_elements = self.driver.find_elements(By.TAG_NAME, "span")
+        people_span = None
+        for span in span_elements:
+            if span.text == 'People':
+                people_span = span
+                break
+        if people_span:
+            people_span.click()
+            time.sleep(WAITTING_TIME_SECOND)
+        else:
+            print("Not Found People Element.")
+            sys.exit(1)
+        
+    def _go_to_query_user(self, search_user):
+        try:
+            span_elements = self.driver.find_elements(By.TAG_NAME, "span")
+            user_spans = list()
+            for span in span_elements:
+                if span.text == search_user or search_user in span.text:
+                    user_spans.append(span)
+
+            print("all users queryed.")
+            for i in range(user_spans):
+                print(f"{i+1}. {user_spans[i].text}")
+            print("Enter number to select one user to query: ")
+            number = int(sys.stdin.readline().strip())
+            
+            # 点击
+            if number < 1 or number > len(user_spans):
+                print("Enter true number to select one user to query: ")
+                number = int(sys.stdin.readline().strip())
+            
+            user_spans[number-1].click()
+            time.sleep(WAITTING_TIME_SECOND)
+
+        except NoSuchElementException as e:
+            print(f"Not Found User Name {search_user} to search.")
+            sys.exit(1)
+
+    def _go_to_following(self):
+        """
+        进入关注界面
+        """
         pass
 
+    def _go_to_followers(self):
+        """
+        进入被关注界面
+        """
+        pass
 
     def get_verify_code(self):
         """
