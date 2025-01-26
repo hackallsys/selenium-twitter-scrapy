@@ -92,6 +92,27 @@ class TwitterScraper:
             self._input_unusual_activity()
             self._input_password()
 
+            cookies = self.driver.get_cookies()
+            auth_token = None
+            for cookie in cookies:
+                if cookie["name"] == "auth_token":
+                    auth_token = cookie["value"]
+                    break
+
+            if auth_token is None:
+                raise ValueError(
+                    """This may be due to the following:
+
+- Internet connection is unstable
+- Username is incorrect
+- Password is incorrect
+"""
+                )
+
+            print()
+            print("Login Successful")
+            print()
+
         except Exception as e:
             print()
             print(f"Login Failed: {e}")
