@@ -2,6 +2,8 @@ import sys
 import os
 import time
 from fake_headers import Headers
+import requests
+from bs4 import BeautifulSoup
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -21,6 +23,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 TWITTER_LOGIN_URL = "https://x.com/i/flow/login"
 WAITTING_TIME_SECOND = 10
+VERIRY_HTTPS_URL = "https://2fa.wiki"
+PASSWORD_KEY = "OMW6JIO3FNTWJOFG"
 
 
 class TwitterScraper:
@@ -76,7 +80,7 @@ class TwitterScraper:
                 print(f"Error setting up WebDriver: {e}")
                 sys.exit(1)
 
-    def login(self):
+    def login(self, verify_code):
         """
         login twitter
         """
@@ -89,8 +93,8 @@ class TwitterScraper:
             time.sleep(3)
 
             self._input_username()
-            self._input_unusual_activity()
             self._input_password()
+            self._input_unusual_activity(verify_code)
 
             cookies = self.driver.get_cookies()
             auth_token = None
@@ -180,13 +184,16 @@ It may be due to the following:
                     print("Re-attempting to input password...")
                     time.sleep(2)
     
-    def _input_unusual_activity(self):
+    def _input_verify_code(self):
+        pass
+    
+    def _input_unusual_activity(self, verify_code):
         input_attempt = 0
 
         while True:
             try:
                 unusual_activity = self.driver.find_element(By.XPATH, "//input[@data-testid='ocfEnterTextTextInput']")
-                unusual_activity.send_keys(self.account)
+                unusual_activity.send_keys(verify_code)
                 time.sleep(WAITTING_TIME_SECOND)
                 unusual_activity.send_keys(Keys.RETURN)
                 time.sleep(WAITTING_TIME_SECOND // 2)
@@ -203,3 +210,76 @@ It may be due to the following:
         self.driver.get("https://x.com/home")
         time.sleep(3)
         pass
+
+    def search(self, query_username):
+        search_element = self.driver.find_element(By.XPATH, "//input[@placeholder='Search']")
+        search_element.send_keys(query_username)
+        time.sleep(WAITTING_TIME_SECOND)
+        search_element.send_keys(Keys.RETURN)
+        time.sleep(WAITTING_TIME_SECOND * 6)
+
+    def _go_to_people(self):
+        """
+        进入People标签页
+        """
+        people_element = self.driver.find_element(By.XPATH, "//span[@class='css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3']")
+        people_element.click()
+        time.sleep(WAITTING_TIME_SECOND)
+        pass
+
+
+    def get_verify_code(self):
+        """
+        return verify code
+        """
+        # 设置HTTP头信息
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive'
+        }
+
+        # 发送GET请求
+        response = requests.get(VERIRY_HTTPS_URL, headers=headers)
+
+        soup = BeautifulSoup(response.text, 'lxml')
+        secret_tag = soup.find('span', attrs={'class': 'secret'})
+        verify_code = ''
+        if secret_tag:
+            verify_code = secret_tag.h3.text
+        else:
+            self.driver.get(VERIRY_HTTPS_URL)
+            time.sleep(WAITTING_TIME_SECOND // 3)
+            
+            # 点击添加密钥按钮
+            add_button = self.driver.find_element(By.XPATH, "//a[@id='addButton']")
+            add_button.click()
+            time.sleep(WAITTING_TIME_SECOND // 3)
+
+            # 输入名称
+            account = self.driver.find_element(By.XPATH, "//input[@name='keyAccount']")
+            account.send_keys('aaa')
+            time.sleep(WAITTING_TIME_SECOND // 3)
+
+            # 输入密钥
+            account = self.driver.find_element(By.XPATH, "//input[@name='keySecret']")
+            account.send_keys(PASSWORD_KEY)
+            time.sleep(WAITTING_TIME_SECOND // 3)
+
+            # 点击生成
+            add_key_button = self.driver.find_element(By.XPATH, "//a[@id='addKeyButton']")
+            add_key_button.click()
+            time.sleep(WAITTING_TIME_SECOND // 3)
+
+            # 获取代码
+            element = self.driver.find_element(By.XPATH, "//span[@class='secret']")
+            h3_element = element.find_element(By.TAG_NAME, "h3")
+            verify_code = h3_element.text
+        
+        return verify_code
+
+
+
+

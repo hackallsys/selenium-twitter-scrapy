@@ -3,6 +3,7 @@ import sys
 import os
 import getpass
 from twitter_scraper import TwitterScraper
+import time
 
 
 try:
@@ -25,6 +26,7 @@ def parse_arguments():
                         default=os.getenv("TWITTER_PASSWORD"), help='Your twitter password')
     parser.add_argument('--account', type=str,
                         default=os.getenv("TWITTER_ACCOUNT"), help='Your twitter account')
+    parser.add_argument('--search-user', type=str, help='User Name to be searched')
 
     args = parser.parse_args()
     return args
@@ -58,6 +60,7 @@ def main():
     USER_UNAME = args.user
     USER_PASSWORD = args.password
     USER_ACCOUNT = args.account
+    SEARCH_USER_NAME = args.search_user
 
     if USER_UNAME is None:
         USER_UNAME = input("Twitter Username: ")
@@ -66,14 +69,24 @@ def main():
         USER_PASSWORD = getpass.getpass("Enter Password: ")
 
     if USER_ACCOUNT is None:
-        USER_ACCOUNT = getpass.getpass("Enter Password: ")
+        USER_ACCOUNT = input("Enter Account: ")
+
+    if SEARCH_USER_NAME is None:
+        SEARCH_USER_NAME = input("Enter User name to be searched: ")
 
     print()
 
     if USER_UNAME is not None and USER_PASSWORD is not None:
         try:
             scraper = TwitterScraper(USER_UNAME, USER_PASSWORD, USER_ACCOUNT)
-            scraper.login()
+
+            print("Please closing vpn")
+            time.sleep(10)
+            verify_code = scraper.get_verify_code()
+            print("Please opening vpn")
+            time.sleep(10)
+            scraper.login(verify_code)
+            scraper.search(SEARCH_USER_NAME)
         except KeyboardInterrupt:
             print("\nScript Interrupted by user. Exiting...")
             sys.exit(1)
