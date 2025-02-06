@@ -4,6 +4,7 @@ import time
 from fake_headers import Headers
 import requests
 from bs4 import BeautifulSoup
+from scroller import Scroller
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -36,6 +37,7 @@ class TwitterScraper:
         self.account = account
 
         self.driver = self._get_driver()
+        self.scroller = Scroller(self.driver)
 
     def _get_driver(self):
         print("Setup WebDriver...")
@@ -216,14 +218,16 @@ It may be due to the following:
         search_element.send_keys(query_username)
         time.sleep(WAITTING_TIME_SECOND)
         search_element.send_keys(Keys.RETURN)
-        time.sleep(WAITTING_TIME_SECOND * 6)
+        time.sleep(WAITTING_TIME_SECOND)
 
         self._go_to_people(query_username)
         self._go_to_query_user(query_username)
+        self._go_to_following()
+        self._go_to_followers()
 
     def _go_to_people(self, search_user):
         """
-        进入People标签页
+        go to People page
         """
         span_elements = self.driver.find_elements(By.TAG_NAME, "span")
         people_span = None
@@ -247,7 +251,7 @@ It may be due to the following:
                     user_spans.append(span)
 
             print("all users queryed.")
-            for i in range(user_spans):
+            for i in range(len(user_spans)):
                 print(f"{i+1}. {user_spans[i].text}")
             print("Enter number to select one user to query: ")
             number = int(sys.stdin.readline().strip())
@@ -266,15 +270,59 @@ It may be due to the following:
 
     def _go_to_following(self):
         """
-        进入关注界面
+        go to following page
         """
-        pass
+        span_elements = self.driver.find_elements(By.TAG_NAME, "span")
+        following_span = None
+        for span in span_elements:
+            if span.text == 'Following':
+                following_span = span
+                break
+        if following_span:
+            following_span.click()
+            time.sleep(WAITTING_TIME_SECOND // 2)
+            self._get_following_or_follower_users(following=True)
+            time.sleep(WAITTING_TIME_SECOND)
+            
+        else:
+            print("Not Found Following Element.")
+            sys.exit(1)
+
+    def _get_following_or_follower_users(self, following=True):
+        """
+        获取用户的关注情况, following为真表示获取following, 反之表示获取follower
+        """
+        try:
+            following_user_div_elements = self.driver.find_elements(By.XPATH, "//div[@data-testid='cellInnerDiv']")
+            for element in following_user_div_elements:
+                span_elements = element.find_elements(By.TAG_NAME, 'span')
+                for e in span_elements:
+                    print(e.text)
+                
+                print("-----------")
+        except NoSuchElementException as e:
+            print(f"Not Found Following users.")
+            sys.exit(1)
+
 
     def _go_to_followers(self):
         """
-        进入被关注界面
+        go to followers page
         """
-        pass
+        span_elements = self.driver.find_elements(By.TAG_NAME, "span")
+        followers_span = None
+        for span in span_elements:
+            if span.text == 'Followers':
+                followers_span = span
+                break
+        if followers_span:
+            followers_span.click()
+            time.sleep(WAITTING_TIME_SECOND // 2)
+            self._get_following_or_follower_users(following=False)
+            time.sleep(WAITTING_TIME_SECOND)
+        else:
+            print("Not Found Followers Element.")
+            sys.exit(1)
 
     def get_verify_code(self):
         """
