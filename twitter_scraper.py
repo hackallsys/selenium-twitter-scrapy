@@ -5,6 +5,9 @@ from fake_headers import Headers
 import requests
 from bs4 import BeautifulSoup
 from scroller import Scroller
+from openpyxl import Workbook
+import pandas as pd
+from openpyxl import load_workbook
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -35,6 +38,8 @@ class TwitterScraper:
         self.username = username
         self.password = password
         self.account = account
+
+        self.search_account_name = None
 
         self.driver = self._get_driver()
         self.scroller = Scroller(self.driver)
@@ -213,7 +218,23 @@ It may be due to the following:
         time.sleep(3)
         pass
 
-    def search(self, query_username):
+    def get_search_account_name(self):
+        return self.search_account_name
+
+    def back(self):
+        """
+        Go back to the previous page.
+        """
+        self.driver.back()
+        time.sleep(WAITTING_TIME_SECOND // 3)
+
+    def quit(self):
+        """
+        quit chrome
+        """
+        self.driver.quit()
+
+    def search(self, query_username, intetractive=True):
         search_element = self.driver.find_element(By.XPATH, "//input[@placeholder='Search']")
         search_element.send_keys(query_username)
         time.sleep(WAITTING_TIME_SECOND)
@@ -221,9 +242,9 @@ It may be due to the following:
         time.sleep(WAITTING_TIME_SECOND)
 
         self._go_to_people(query_username)
-        self._go_to_query_user(query_username)
-        self._go_to_following()
-        self._go_to_followers()
+        self._go_to_query_user(query_username, intetractive)
+        self._go_to_following(self.search_account_name)
+        self._go_to_followers(self.search_account_name)
 
     def _go_to_people(self, search_user):
         """
@@ -242,7 +263,7 @@ It may be due to the following:
             print("Not Found People Element.")
             sys.exit(1)
         
-    def _go_to_query_user(self, search_user):
+    def _go_to_query_user(self, search_user, intetractive):
         try:
             span_elements = self.driver.find_elements(By.TAG_NAME, "span")
             user_spans = list()
@@ -250,25 +271,35 @@ It may be due to the following:
                 if span.text == search_user or search_user in span.text:
                     user_spans.append(span)
 
-            print("all users queryed.")
-            for i in range(len(user_spans)):
-                print(f"{i+1}. {user_spans[i].text}")
-            print("Enter number to select one user to query: ")
-            number = int(sys.stdin.readline().strip())
-            
-            # 点击
-            if number < 1 or number > len(user_spans):
-                print("Enter true number to select one user to query: ")
+            if intetractive:
+                print("all users queryed.")
+                for i in range(len(user_spans)):
+                    print(f"{i+1}. {user_spans[i].text}")
+                print("Enter number to select one user to query: ")
                 number = int(sys.stdin.readline().strip())
+                
+                # 点击
+                if number < 1 or number > len(user_spans):
+                    print("Enter true number to select one user to query: ")
+                    number = int(sys.stdin.readline().strip())
             
-            user_spans[number-1].click()
+                user_spans[number-1].click()
+            else:
+                user_spans[0].click()
+            
+            time.sleep(WAITTING_TIME_SECOND // 4)
+            try:
+                self.search_account_name = self.driver.find_element(By.CSS_SELECTOR, 'div[data-testid="UserName"] div.css-146c3p1[style*="color: rgb(113, 118, 123)"] span.css-1jxf684').text[1:]
+            except NoSuchElementException:
+                self.search_account_name = search_user
+
             time.sleep(WAITTING_TIME_SECOND)
 
         except NoSuchElementException as e:
             print(f"Not Found User Name {search_user} to search.")
             sys.exit(1)
 
-    def _go_to_following(self):
+    def _go_to_following(self, search_user):
         """
         go to following page
         """
@@ -281,31 +312,108 @@ It may be due to the following:
         if following_span:
             following_span.click()
             time.sleep(WAITTING_TIME_SECOND // 2)
-            self._get_following_or_follower_users(following=True)
+            self._get_following_or_follower_users(search_user, following=True)
             time.sleep(WAITTING_TIME_SECOND)
             
         else:
             print("Not Found Following Element.")
             sys.exit(1)
 
-    def _get_following_or_follower_users(self, following=True):
+    def _get_following_or_follower_users(self, search_user, following=True):
         """
         获取用户的关注情况, following为真表示获取following, 反之表示获取follower
         """
-        try:
-            following_user_div_elements = self.driver.find_elements(By.XPATH, "//div[@data-testid='cellInnerDiv']")
-            for element in following_user_div_elements:
-                span_elements = element.find_elements(By.TAG_NAME, 'span')
-                for e in span_elements:
-                    print(e.text)
+        # 获取页面初始的滚动高度
+        last_height = self.driver.execute_script("return document.body.scrollHeight")
+        users_account_name_set = set()
+        while True:
+            # 每次滚动一个屏幕高度
+            self.driver.execute_script("window.scrollBy(0, window.innerHeight);")
+
+            # 等待页面加载新内容
+            time.sleep(WAITTING_TIME_SECOND)
+
+            try:
+                following_user_div_elements = self.driver.find_elements(By.XPATH, "//div[@data-testid='cellInnerDiv']")
                 
-                print("-----------")
-        except NoSuchElementException as e:
-            print(f"Not Found Following users.")
-            sys.exit(1)
+                users_list = list()
+                for element in following_user_div_elements:
+                    try:
+                        user_name = ''
+                        user_name = element.find_element(By.CSS_SELECTOR, 'div.css-146c3p1.r-bcqeeo.r-1ttztb7.r-qvutc0.r-37j5jr.r-a023e6.r-rjixqe.r-b88u0q.r-1awozwy.r-6koalj.r-1udh08x.r-3s2u2q span.css-1jxf684.r-bcqeeo.r-1ttztb7.r-qvutc0.r-poiln3').text
+                        print(user_name)
+                    except NoSuchElementException:
+                        pass
 
+                    try:
+                        accout_name = ''
+                        accout_name = element.find_element(By.CSS_SELECTOR, 'div.css-146c3p1.r-dnmrzs.r-1udh08x.r-1udbk01.r-3s2u2q.r-bcqeeo.r-1ttztb7.r-qvutc0.r-37j5jr.r-a023e6.r-rjixqe.r-16dba41.r-18u37iz.r-1wvb978 span.css-1jxf684.r-bcqeeo.r-1ttztb7.r-qvutc0.r-poiln3').text
+                        print(accout_name)
+                    except NoSuchElementException:
+                        pass
 
-    def _go_to_followers(self):
+                    try:
+                        description = ''
+                        description = element.find_element(By.CSS_SELECTOR, 'div.css-146c3p1.r-bcqeeo.r-1ttztb7.r-qvutc0.r-37j5jr.r-a023e6.r-rjixqe.r-16dba41.r-1h8ys4a.r-1jeg54m').text
+                        print(description)
+                    except NoSuchElementException:
+                        pass
+                    
+                    if accout_name not in users_account_name_set:
+                        users_account_name_set.add(accout_name)
+                        users_list.append(tuple([user_name, accout_name, description]))
+
+                self._write_to_excel(f'{search_user}.xlsx', users_list, following)
+            except NoSuchElementException as e:
+                print(f"Not Found users.")
+                # sys.exit(1)
+
+            # 获取当前页面的滚动高度
+            new_height = self.driver.execute_script("return document.body.scrollHeight")
+
+            # 判断是否已经滚动到底部
+            if new_height == last_height:
+                break
+            last_height = new_height
+        
+        self.driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(WAITTING_TIME_SECOND // 2)
+
+    def _write_to_excel(self, excel_file, users_list, following=True):
+        current_dir = os.getcwd()
+        file_path = os.path.join(current_dir, excel_file)
+
+        if not os.path.exists(file_path):
+            wb = Workbook()
+            ws1 = wb.active
+            ws1.title = 'following'
+            wb.create_sheet('follower')
+            wb.save(file_path)
+
+        wb = load_workbook(file_path)
+        
+        # 将数据写入文件
+        df = pd.DataFrame(users_list, columns=['username', 'accountname', 'description'])
+
+        sheet_name = 'following' if following else 'follower'
+
+        ws = wb[sheet_name]
+
+        # 如果工作表是空的，写入表头
+        if ws.max_row == 1 and all(cell.value is None for cell in ws[1]):
+            for col_num, col_name in enumerate(df.columns, start=1):
+                ws.cell(row=1, column=col_num, value=col_name)
+
+        # 从第二行开始写入数据
+        start_row = ws.max_row + 1
+        for row_num, row_data in df.iterrows():
+            for col_num, value in enumerate(row_data, start=1):
+                ws.cell(row=start_row + row_num, column=col_num, value=value)
+
+        # 保存修改后的 Excel 文件
+        wb.save(file_path)
+
+    def _go_to_followers(self, search_user):
         """
         go to followers page
         """
@@ -318,7 +426,7 @@ It may be due to the following:
         if followers_span:
             followers_span.click()
             time.sleep(WAITTING_TIME_SECOND // 2)
-            self._get_following_or_follower_users(following=False)
+            self._get_following_or_follower_users(search_user, following=False)
             time.sleep(WAITTING_TIME_SECOND)
         else:
             print("Not Found Followers Element.")
