@@ -133,11 +133,6 @@ def main():
             time.sleep(10)
             scraper.login(verify_code)
             scraper.search(SEARCH_USER_NAME)
-            scraper.back()
-            scraper.back()
-            scraper.back()
-            scraper.back()
-            scraper.back()
 
             # 获取关注者的被关注用户和关注用户
             current_dir = os.getcwd()
@@ -161,11 +156,7 @@ def main():
                     for acoountname in accountnames:
                         print(f'\n Search user: {acoountname}.')
                         scraper.search(acoountname, False)
-                        scraper.back()
-                        scraper.back()
-                        scraper.back()
-                        scraper.back()
-                        scraper.back()
+        
                 else:
                     print("在 'follower'工作表中没有找到 'accountname' 列。")
                     scraper.quit()

@@ -242,9 +242,20 @@ It may be due to the following:
         time.sleep(WAITTING_TIME_SECOND)
 
         self._go_to_people(query_username)
-        self._go_to_query_user(query_username, intetractive)
-        self._go_to_following(self.search_account_name)
-        self._go_to_followers(self.search_account_name)
+        not_lock = self._go_to_query_user(query_username, intetractive)
+
+        if not_lock:
+            self._go_to_following(self.search_account_name)
+            self._go_to_followers(self.search_account_name)
+            self.back()
+            self.back()
+            self.back()
+            self.back()
+            self.back()
+        else:
+            self.back()
+            self.back()
+            self.back()
 
     def _go_to_people(self, search_user):
         """
@@ -295,9 +306,18 @@ It may be due to the following:
 
             time.sleep(WAITTING_TIME_SECOND)
 
+            try:
+                self.driver.find_element(By.XPATH, "//svg[@data-testid='icon-lock']")
+                return False
+            except NoSuchElementException:
+                return True
+            
+
         except NoSuchElementException as e:
             print(f"Not Found User Name {search_user} to search.")
             sys.exit(1)
+        
+        return True
 
     def _go_to_following(self, search_user):
         """
